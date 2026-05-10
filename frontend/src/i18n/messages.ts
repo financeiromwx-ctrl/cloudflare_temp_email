@@ -2,22 +2,16 @@ import { MESSAGE_REGISTRY, getMessageSource } from './message-registry'
 
 import type { MessageKey, MessageNamespace } from './message-registry'
 
-import { deMessages } from './locales/source/de'
-import { esMessages } from './locales/source/es'
-import { jaMessages } from './locales/source/ja'
 import { ptBRMessages } from './locales/source/ptBR'
 
 import type { SupportedLocale } from './locale-registry'
 
 type LocaleTree = Record<string, unknown>
-type SourceLocale = Extract<SupportedLocale, 'en' | 'zh'>
+type SourceLocale = Extract<SupportedLocale, 'en'>
 type AdditionalLocale = Exclude<SupportedLocale, SourceLocale>
 
 const additionalLocaleSources: Record<AdditionalLocale, Record<string, string>> = {
-  es: esMessages,
   'pt-BR': ptBRMessages,
-  ja: jaMessages,
-  de: deMessages,
 }
 
 const setNestedValue = (target: LocaleTree, path: string, value: unknown) => {
@@ -64,12 +58,8 @@ const buildAdditionalLocaleMessages = (locale: AdditionalLocale) => {
 }
 
 export const I18N_MESSAGES: Record<SupportedLocale, LocaleTree> = {
-  zh: buildSourceLocaleMessages('zh'),
   en: buildSourceLocaleMessages('en'),
-  es: buildAdditionalLocaleMessages('es'),
   'pt-BR': buildAdditionalLocaleMessages('pt-BR'),
-  ja: buildAdditionalLocaleMessages('ja'),
-  de: buildAdditionalLocaleMessages('de'),
 }
 
 export const getLocalizedMessage = (

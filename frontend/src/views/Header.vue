@@ -9,7 +9,7 @@ import {
     AdminPanelSettingsFilled, MonitorHeartFilled,
     KeyboardArrowDownOutlined, OpenInNewOutlined
 } from '@vicons/material'
-import { GithubAlt, Language, User, Home } from '@vicons/fa'
+import { Language, Home } from '@vicons/fa'
 
 import { useGlobalState } from '../store'
 import { api } from '../api'
@@ -32,7 +32,6 @@ const isMobile = useIsMobile()
 
 const showMobileMenu = ref(false)
 const menuValue = computed(() => {
-    if (route.path.includes("user")) return "user";
     if (route.path.includes("admin")) return "admin";
     return "home";
 });
@@ -122,27 +121,6 @@ const menuOptions = computed(() => [
                 icon: () => h(NIcon, { component: Home })
             }),
         key: "home"
-    },
-    {
-        label: () => h(
-            NButton,
-            {
-                text: true,
-                size: "small",
-                type: menuValue.value == "user" ? "primary" : "default",
-                style: "width: 100%",
-                onClick: async () => {
-                    await router.push(getRouterPathWithLang("/user", locale.value));
-                    showMobileMenu.value = false;
-                }
-            },
-            {
-                default: () => t('user'),
-                icon: () => h(NIcon, { component: User }),
-            }
-        ),
-        key: "user",
-        show: !isTelegram.value
     },
     {
         label: () => h(
@@ -269,20 +247,6 @@ onMounted(async () => {
                             <n-icon :component="KeyboardArrowDownOutlined" style="margin-left: 4px;" />
                         </n-button>
                     </n-dropdown>
-                    <n-button
-                        v-if="!isMobile && openSettings.showGithub"
-                        text
-                        size="small"
-                        class="header-version-button"
-                        tag="a"
-                        target="_blank"
-                        href="https://github.com/dreamhunter2333/cloudflare_temp_email"
-                    >
-                        <template #icon>
-                            <n-icon :component="GithubAlt" />
-                        </template>
-                        {{ version || 'Github' }}
-                    </n-button>
                 </n-space>
             </template>
         </n-page-header>
@@ -297,17 +261,6 @@ onMounted(async () => {
                             <n-icon :component="KeyboardArrowDownOutlined" class="mobile-menu-action-arrow" />
                         </button>
                     </n-dropdown>
-                    <a
-                        v-if="openSettings.showGithub"
-                        class="mobile-menu-utility-button"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        href="https://github.com/dreamhunter2333/cloudflare_temp_email"
-                    >
-                        <n-icon :component="GithubAlt" />
-                        <span class="mobile-menu-action-label">{{ version || 'Github' }}</span>
-                        <n-icon :component="OpenInNewOutlined" class="mobile-menu-action-arrow" />
-                    </a>
                 </div>
             </n-drawer-content>
         </n-drawer>
@@ -353,16 +306,6 @@ onMounted(async () => {
 }
 
 .header-locale-button :deep(.n-icon) {
-    display: inline-flex;
-    align-items: center;
-}
-
-.header-version-button {
-    display: inline-flex;
-    align-items: center;
-}
-
-.header-version-button :deep(.n-button__content) {
     display: inline-flex;
     align-items: center;
 }

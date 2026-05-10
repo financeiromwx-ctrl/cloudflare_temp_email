@@ -288,7 +288,7 @@ onMounted(async () => {
                         </template>
                         {{ loginAndBindTag }}
                     </n-button>
-                    <n-button v-if="showNewAddressTab" @click="tabValue = 'register'" block secondary strong>
+                    <n-button @click="tabValue = 'register'" block secondary strong>
                         <template #icon>
                             <n-icon :component="NewLabelOutlined" />
                         </template>
@@ -296,7 +296,7 @@ onMounted(async () => {
                     </n-button>
                 </n-form>
             </n-tab-pane>
-            <n-tab-pane v-if="showNewAddressTab" name="register" :tab="t('getNewEmail')">
+            <n-tab-pane name="register" :tab="t('getNewEmail')">
                 <n-spin :show="generateNameLoading">
                     <n-form>
                         <span>
@@ -337,12 +337,6 @@ onMounted(async () => {
                         </n-button>
                     </n-form>
                 </n-spin>
-            </n-tab-pane>
-            <n-tab-pane name="help" :tab="t('help')">
-                <n-alert :show-icon="false" :bordered="false">
-                    <span>{{ t('pleaseGetNewEmail') }}</span>
-                </n-alert>
-                <AdminContact />
             </n-tab-pane>
         </n-tabs>
     </div>

@@ -83,10 +83,24 @@ onMounted(async () => {
     isTelegram.value = !!window.Telegram?.WebApp?.initData;
   }
 });
+const themeOverrides = computed(() => {
+  if (isDark.value) {
+    return {
+      common: {
+        bodyColor: '#120b1c',
+        cardColor: '#1c112a',
+        modalColor: '#1c112a',
+        popoverColor: '#1c112a',
+        dividerColor: 'rgba(255, 255, 255, 0.09)'
+      }
+    }
+  }
+  return null
+})
 </script>
 
 <template>
-  <n-config-provider :locale="localeConfig.locale" :date-locale="localeConfig.dateLocale" :theme="theme">
+  <n-config-provider :locale="localeConfig.locale" :date-locale="localeConfig.dateLocale" :theme="theme" :theme-overrides="themeOverrides">
     <n-global-style />
     <n-spin description="loading..." :show="loading">
       <n-notification-provider container-style="margin-top: 60px;">
