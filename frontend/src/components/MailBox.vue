@@ -204,9 +204,25 @@ const clickRow = async (row) => {
     row.checked = !row.checked;
     return;
   }
-  curMail.value = row;
+  try {
+    loading.value = true;
+    const { api } = await import('../api');
+    const detail = await api.fetch(`/api/mail/${row.id}`);
+    if (detail) {
+      curMail.value = await processItem(detail);
+      curMail.value.raw_headers = detail.raw_headers;
+      curMail.value.parsed_headers = detail.parsed_headers;
+      curMail.value.security = detail.security;
+    } else {
+      curMail.value = row;
+    }
+  } catch(e) {
+    console.error(e);
+    curMail.value = row;
+  } finally {
+    loading.value = false;
+  }
 };
-
 
 const mailItemClass = (row) => {
   return curMail.value && row.id == curMail.value.id ? (isDark.value ? 'overlay overlay-dark-backgroud' : 'overlay overlay-light-backgroud') : '';
@@ -317,6 +333,15 @@ const multiActionDownload = async () => {
   }
 }
 
+const getSecurityColor = (status) => {
+  if (!status) return 'default';
+  const s = status.toLowerCase();
+  if (s === 'pass') return 'success';
+  if (s === 'fail' || s === 'softfail') return 'error';
+  if (s === 'neutral' || s === 'none') return 'warning';
+  return 'default';
+};
+
 onMounted(async () => {
   await refresh();
 });
@@ -375,7 +400,7 @@ onBeforeUnmount(() => {
             clearable />
         </n-space>
       </div>
-      <n-split class="left" direction="horizontal" :max="0.75" :min="0.25" :default-size="mailboxSplitSize"
+      <n-split class="left" direction="horizontal" :max="0.75" :min="0.25" :default-size="mailboxSplitSize || 0.3"
         :on-update:size="onSpiltSizeChange">
         <template #1>
           <div style="overflow: auto; min-height: 60vh; max-height: 100vh;">
@@ -387,22 +412,21 @@ onBeforeUnmount(() => {
                 </template>
                 <n-thing :title="row.subject">
                   <template #description>
-                    <n-tag type="info">
-                      ID: {{ row.id }}
-                    </n-tag>
-                    <n-tag type="info">
-                      {{ utcToLocalDate(row.created_at, useUTCDate) }}
-                    </n-tag>
-                    <n-tag type="info">
-                      <n-ellipsis style="max-width: 240px;">
-                        {{ showEMailTo ? "FROM: " + row.source : row.source }}
-                      </n-ellipsis>
-                    </n-tag>
-                    <n-tag v-if="showEMailTo" type="info">
-                      <n-ellipsis style="max-width: 240px;">
-                        TO: {{ row.address }}
-                      </n-ellipsis>
-                    </n-tag>
+                    <n-space size="small" style="margin-top: 4px;">
+                      <n-tag type="info" size="small">
+                        {{ utcToLocalDate(row.created_at, useUTCDate) }}
+                      </n-tag>
+                      <n-tag type="info" size="small">
+                        <n-ellipsis style="max-width: 240px;">
+                          {{ showEMailTo ? "FROM: " + row.source : row.source }}
+                        </n-ellipsis>
+                      </n-tag>
+                    </n-space>
+                    <n-space size="small" style="margin-top: 4px;" v-if="row.security">
+                      <n-tag :type="getSecurityColor(row.security.spf)" size="small">SPF: {{ row.security.spf || '?' }}</n-tag>
+                      <n-tag :type="getSecurityColor(row.security.dkim)" size="small">DKIM: {{ row.security.dkim || '?' }}</n-tag>
+                      <n-tag :type="getSecurityColor(row.security.dmarc)" size="small">DMARC: {{ row.security.dmarc || '?' }}</n-tag>
+                    </n-space>
                     <AiExtractInfo :metadata="row.metadata" compact />
                   </template>
                 </n-thing>
@@ -471,22 +495,21 @@ onBeforeUnmount(() => {
           <n-list-item v-for="row in data" v-bind:key="row.id" @click="() => clickRow(row)">
             <n-thing :title="row.subject">
               <template #description>
-                <n-tag type="info">
-                  ID: {{ row.id }}
-                </n-tag>
-                <n-tag type="info">
-                  {{ utcToLocalDate(row.created_at, useUTCDate) }}
-                </n-tag>
-                <n-tag type="info">
-                  <n-ellipsis style="max-width: 240px;">
-                    {{ showEMailTo ? "FROM: " + row.source : row.source }}
-                  </n-ellipsis>
-                </n-tag>
-                <n-tag v-if="showEMailTo" type="info">
-                  <n-ellipsis style="max-width: 240px;">
-                    TO: {{ row.address }}
-                  </n-ellipsis>
-                </n-tag>
+                <n-space size="small" style="margin-top: 4px;">
+                  <n-tag type="info" size="small">
+                    {{ utcToLocalDate(row.created_at, useUTCDate) }}
+                  </n-tag>
+                  <n-tag type="info" size="small">
+                    <n-ellipsis style="max-width: 240px;">
+                      {{ showEMailTo ? "FROM: " + row.source : row.source }}
+                    </n-ellipsis>
+                  </n-tag>
+                </n-space>
+                <n-space size="small" style="margin-top: 4px;" v-if="row.security">
+                  <n-tag :type="getSecurityColor(row.security.spf)" size="small">SPF: {{ row.security.spf || '?' }}</n-tag>
+                  <n-tag :type="getSecurityColor(row.security.dkim)" size="small">DKIM: {{ row.security.dkim || '?' }}</n-tag>
+                  <n-tag :type="getSecurityColor(row.security.dmarc)" size="small">DMARC: {{ row.security.dmarc || '?' }}</n-tag>
+                </n-space>
                 <AiExtractInfo :metadata="row.metadata" compact />
               </template>
             </n-thing>

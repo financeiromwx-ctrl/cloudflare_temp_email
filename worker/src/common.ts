@@ -676,10 +676,25 @@ export const handleMailListQuery = async (
         ...params, limit, offset
     ).all();
     const resolvedResults = await resolveRawEmailList(results);
+    
+    // Parse security and omit large fields for list
+    const formattedResults = resolvedResults.map((r: any) => {
+        let security = null;
+        try {
+            if (r.security_json) {
+                const sec = JSON.parse(r.security_json);
+                security = { spf: sec.spf, dkim: sec.dkim, dmarc: sec.dmarc };
+            }
+        } catch(e) {}
+        
+        const { raw_headers, parsed_headers_json, security_json, ...rest } = r;
+        return { ...rest, security };
+    });
+
     const count = offset == 0 ? await c.env.DB.prepare(
         countQuery
     ).bind(...params).first("count") : 0;
-    return c.json({ results: resolvedResults, count });
+    return c.json({ results: formattedResults, count });
 }
 
 export const commonParseMail = async (parsedEmailContext: ParsedEmailContext): Promise<{

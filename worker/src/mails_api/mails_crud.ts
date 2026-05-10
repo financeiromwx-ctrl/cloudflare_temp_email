@@ -27,7 +27,27 @@ const getMail = async (c: Context<HonoCustomType>) => {
         `SELECT * FROM raw_mails where id = ? and address = ?`
     ).bind(mail_id, address).first();
     if (!result) return c.json(null);
-    return c.json(await resolveRawEmailRow(result));
+    const resolved = await resolveRawEmailRow(result) as any;
+    
+    let security = null;
+    let parsed_headers = null;
+    try {
+        if (resolved.security_json) {
+            security = JSON.parse(resolved.security_json);
+        }
+    } catch(e) {}
+    try {
+        if (resolved.parsed_headers_json) {
+            parsed_headers = JSON.parse(resolved.parsed_headers_json);
+        }
+    } catch(e) {}
+
+    const { security_json, parsed_headers_json, ...rest } = resolved;
+    return c.json({
+        ...rest,
+        parsed_headers,
+        security
+    });
 };
 
 const deleteMail = async (c: Context<HonoCustomType>) => {

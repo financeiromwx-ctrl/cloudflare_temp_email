@@ -64,6 +64,55 @@ async function email(message: ForwardableEmailMessage, env: Bindings, ctx: Execu
     }
 
     const message_id = message.headers.get("Message-ID");
+    
+    let raw_headers = "";
+    const parsed_headers: Record<string, any> = {};
+    const security_info: Record<string, string> = {
+        spf: "unknown",
+        dkim: "unknown",
+        dmarc: "unknown",
+        raw_authentication_results: ""
+    };
+
+    try {
+        for (const [key, value] of message.headers.entries()) {
+            raw_headers += `${key}: ${value}\r\n`;
+            const lowerKey = key.toLowerCase().replace(/-/g, '_');
+            
+            if (parsed_headers[lowerKey]) {
+                if (Array.isArray(parsed_headers[lowerKey])) {
+                    parsed_headers[lowerKey].push(value);
+                } else {
+                    parsed_headers[lowerKey] = [parsed_headers[lowerKey], value];
+                }
+            } else {
+                if (lowerKey === 'received') {
+                    parsed_headers[lowerKey] = [value];
+                } else {
+                    parsed_headers[lowerKey] = value;
+                }
+            }
+        }
+
+        const authResults = message.headers.get("Authentication-Results");
+        if (authResults) {
+            security_info.raw_authentication_results = authResults;
+            const spfMatch = authResults.match(/spf=(\w+)/i);
+            if (spfMatch) security_info.spf = spfMatch[1].toLowerCase();
+            
+            const dkimMatch = authResults.match(/dkim=(\w+)/i);
+            if (dkimMatch) security_info.dkim = dkimMatch[1].toLowerCase();
+            
+            const dmarcMatch = authResults.match(/dmarc=(\w+)/i);
+            if (dmarcMatch) security_info.dmarc = dmarcMatch[1].toLowerCase();
+        }
+    } catch (e) {
+        console.error("Error parsing headers", e);
+    }
+
+    const parsed_headers_json = JSON.stringify(parsed_headers);
+    const security_json = JSON.stringify(security_info);
+
     // save email
     try {
         let success = false;
@@ -77,37 +126,48 @@ async function email(message: ForwardableEmailMessage, env: Bindings, ctx: Execu
             if (compressed) {
                 try {
                     ({ success } = await env.DB.prepare(
-                        `INSERT INTO raw_mails (source, address, raw_blob, message_id) VALUES (?, ?, ?, ?)`
+                        `INSERT INTO raw_mails (source, address, raw_blob, message_id, raw_headers, parsed_headers_json, security_json) VALUES (?, ?, ?, ?, ?, ?, ?)`
                     ).bind(
-                        message.from, message.to, compressed, message_id
+                        message.from, message.to, compressed, message_id, raw_headers, parsed_headers_json, security_json
                     ).run());
                 } catch (dbError) {
-                    // Fallback to plaintext only if raw_blob column is missing (migration not applied)
                     const errMsg = String(dbError);
-                    if (errMsg.includes('raw_blob') || errMsg.includes('no such column')) {
-                        console.error("raw_blob column missing, falling back to plaintext", dbError);
-                        ({ success } = await env.DB.prepare(
-                            `INSERT INTO raw_mails (source, address, raw, message_id) VALUES (?, ?, ?, ?)`
-                        ).bind(
-                            message.from, message.to, parsedEmailContext.rawEmail, message_id
-                        ).run());
-                    } else {
-                        throw dbError;
-                    }
+                    console.error("schema missing columns, falling back to plaintext old schema", dbError);
+                    ({ success } = await env.DB.prepare(
+                        `INSERT INTO raw_mails (source, address, raw, message_id) VALUES (?, ?, ?, ?)`
+                    ).bind(
+                        message.from, message.to, parsedEmailContext.rawEmail, message_id
+                    ).run());
                 }
             } else {
+                try {
+                    ({ success } = await env.DB.prepare(
+                        `INSERT INTO raw_mails (source, address, raw, message_id, raw_headers, parsed_headers_json, security_json) VALUES (?, ?, ?, ?, ?, ?, ?)`
+                    ).bind(
+                        message.from, message.to, parsedEmailContext.rawEmail, message_id, raw_headers, parsed_headers_json, security_json
+                    ).run());
+                } catch (dbError) {
+                    ({ success } = await env.DB.prepare(
+                        `INSERT INTO raw_mails (source, address, raw, message_id) VALUES (?, ?, ?, ?)`
+                    ).bind(
+                        message.from, message.to, parsedEmailContext.rawEmail, message_id
+                    ).run());
+                }
+            }
+        } else {
+            try {
+                ({ success } = await env.DB.prepare(
+                    `INSERT INTO raw_mails (source, address, raw, message_id, raw_headers, parsed_headers_json, security_json) VALUES (?, ?, ?, ?, ?, ?, ?)`
+                ).bind(
+                    message.from, message.to, parsedEmailContext.rawEmail, message_id, raw_headers, parsed_headers_json, security_json
+                ).run());
+            } catch (dbError) {
                 ({ success } = await env.DB.prepare(
                     `INSERT INTO raw_mails (source, address, raw, message_id) VALUES (?, ?, ?, ?)`
                 ).bind(
                     message.from, message.to, parsedEmailContext.rawEmail, message_id
                 ).run());
             }
-        } else {
-            ({ success } = await env.DB.prepare(
-                `INSERT INTO raw_mails (source, address, raw, message_id) VALUES (?, ?, ?, ?)`
-            ).bind(
-                message.from, message.to, parsedEmailContext.rawEmail, message_id
-            ).run());
         }
         if (!success) {
             message.setReject(`Failed save message to ${message.to}`);

@@ -11,6 +11,9 @@ CREATE TABLE IF NOT EXISTS raw_mails (
     raw TEXT,
     raw_blob BLOB,
     metadata TEXT,
+    raw_headers TEXT,
+    parsed_headers_json TEXT,
+    security_json TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -195,6 +198,22 @@ export default {
             );
             if (!hasRawBlob) {
                 await c.env.DB.exec(`ALTER TABLE raw_mails ADD COLUMN raw_blob BLOB;`);
+            }
+        }
+        if (version && version <= "v0.0.7") {
+            // migration to v0.0.8: add raw_headers, parsed_headers_json, security_json
+            const tableInfo = await c.env.DB.prepare(
+                `PRAGMA table_info(raw_mails)`
+            ).all();
+            const colNames = tableInfo.results?.map((col: any) => col.name) || [];
+            if (!colNames.includes('raw_headers')) {
+                await c.env.DB.exec(`ALTER TABLE raw_mails ADD COLUMN raw_headers TEXT;`);
+            }
+            if (!colNames.includes('parsed_headers_json')) {
+                await c.env.DB.exec(`ALTER TABLE raw_mails ADD COLUMN parsed_headers_json TEXT;`);
+            }
+            if (!colNames.includes('security_json')) {
+                await c.env.DB.exec(`ALTER TABLE raw_mails ADD COLUMN security_json TEXT;`);
             }
         }
         if (version != CONSTANTS.DB_VERSION) {
